@@ -1,0 +1,9 @@
+WpbLocalPlanner:
+  # 速度参数 - 设置为0.8m/s以提高导航速度
+  max_vel_trans: 3.3      # 最大平移速度，默认0.3
+  max_vel_rot: 1.5        # 最大旋转速度，默认0.9
+  acc_scale_trans: 2.5    # 平移加速度缩放因子，默认1.5
+  acc_scale_rot: 3.0      # 旋转加速度缩放因子，默认0.3
+  goal_dist_tolerance: 0.15  # 目标距离容差，默认0.1
+  goal_yaw_tolerance: 0.2    # 目标航向容差，默认0.1
+  scan_topic: /scan       # 激光雷达话题，默认/scan
