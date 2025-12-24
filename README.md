@@ -11,5 +11,7 @@
 
 使用方法：
 首先在虚拟机上装好ubuntu系统，在系统中安装ros，然后克隆mani功能包。在以上工作的基础上将mobile_pkg功能包粘贴进catkin_ws的src文件夹中，复制剩下两个文件夹将wpb_mani中的两个同名文件夹替换掉，将mobile_pkg文件夹中的waypoints文件粘贴至Home目录下。
+
 完成以上工作后在catkin_ws文件夹中打开ubuntu的命令端，编译成功后输入roslaunch mobile_pkg kh6启动仿真地图环境，再打开一个命令端输入rosrun mobile_pkg cruise_node启动小车程序
+
 该项目实现了小车巡航、机械臂抓取放置物品、目标识别等功能
