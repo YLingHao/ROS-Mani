@@ -1,0 +1,101 @@
+<launch>
+
+  <!-- ========== 环境变量设置 ========== -->
+  <env name="WAYPOINTS_FILE" value="$(find mobile_pkg)/waypoints/waypoints.xml" />
+
+  <!-- ========== Gazebo 仿真环境 ========== -->
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find wpr_simulation)/worlds/robocup_home.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="true"/>
+    <arg name="recording" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <!-- ========== Spawn 静态物品 ========== -->
+  <node name="table" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/table_20cm.model -x 2.66 -y -0.2 -z 0 -Y 1.57 -urdf -model table" />
+
+  <node name="box_1" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/box_yellow.model -x 3.0 -y -0.09 -z 0.3 -Y 3.14159 -urdf -model box_1" />
+  <node name="box_2" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/box_red.model -x 2.7 -y -0.09 -z 0.3 -Y 3.14159 -urdf -model box_2" />
+  <node name="box_3" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/box_blue.model -x 2.2 -y -0.09 -z 0.3 -Y 3.14159 -urdf -model box_3" />
+
+  <node name="xn" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/xn.model -x -2.2 -y -3.7 -z 0.5 -Y 1.584 -urdf -model xn" />
+  <node name="QD1" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/QD1.model -x -1.1 -y -3.7 -z 0.5 -Y 1.584 -urdf -model QD1" />
+  <node name="sz" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/boxes/sz.model -x -4.8 -y 1.8 -z 0.5 -Y 1.5727 -urdf -model sz" />
+
+  <node name="red_bin" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/bins/red_bin.model -x 0.45 -y 3.5 -z 0.0 -Y 0 -urdf -model red_bin" />
+  <node name="yellow_bin" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/bins/yellow_bin.model -x 0.99 -y 3.5 -z 0.0 -Y 0 -urdf -model yellow_bin" />
+  <node name="blue_bin" pkg="gazebo_ros" type="spawn_model"
+        args="-file $(find wpb_mani_simulator)/models/bins/blue_bin.model -x 1.5 -y 3.5 -z 0.0 -Y 0 -urdf -model blue_bin" />
+
+  <!-- ========== 机器人模型与控制 ========== -->
+  <param name="robot_description" command="$(find xacro)/xacro --inorder $(find wpb_mani_description)/urdf/wpb_mani.urdf.xacro" />
+  
+  <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model"
+        args="-param robot_description -urdf -x -5 -y -0.5 -z 0 -Y 0 -model wpb_mani" />
+
+  <include file="$(find wpb_mani_simulator)/launch/wpb_mani_controllers.launch"/>
+
+  <node pkg="wpb_mani_simulator" type="wpb_mani_sim_lidar_filter" name="wpb_mani_sim_lidar_filter">
+    <param name="pub_topic" value="/scan"/>
+  </node>
+
+  <!-- ========== 摄像头支持 ========== -->
+  <node name="camera" pkg="gazebo_ros" type="camera" 
+        args="-camera_name=front_camera -camera_topic=/camera/rgb/image_raw -width=640 -height=480" />
+
+  <!-- ========== 导航栈 ========== -->
+  <node name="map_server" pkg="map_server" type="map_server"
+        args="$(find wpb_mani_tutorials)/maps/map.yaml"/>
+
+  <include file="$(find wpb_mani_tutorials)/nav_lidar/amcl_omni.launch" />
+
+  <node pkg="move_base" type="move_base" respawn="false" name="move_base" output="screen">
+    <rosparam file="$(find wpb_mani_tutorials)/nav_lidar/costmap_common_params.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find wpb_mani_tutorials)/nav_lidar/costmap_common_params.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find wpb_mani_tutorials)/nav_lidar/local_costmap_params.yaml" command="load" />
+    <rosparam file="$(find wpb_mani_tutorials)/nav_lidar/global_costmap_params.yaml" command="load" />
+    <rosparam file="$(find wpb_mani_tutorials)/nav_lidar/wpb_local_planner_params.yaml" command="load" />
+    <param name="base_global_planner" value="global_planner/GlobalPlanner" />
+    <param name="use_dijkstra" value="true"/>
+    <param name="base_local_planner" value="wpb_local_planner/WpbLocalPlanner" />
+    <param name="controller_frequency" value="10" type="double"/>
+  </node>
+
+  <!-- ========== 航点系统 ========== -->
+  <node pkg="waterplus_map_tools" type="wp_manager" name="wp_manager" output="screen">
+    <param name="waypoints_file" value="$(find mobile_pkg)/waypoints/waypoints.xml" />
+  </node>
+  <node pkg="waterplus_map_tools" type="wp_navi_server" name="wp_navi_server" output="screen"/>
+
+  <!-- ========== 关键：启动 MoveIt！ ========== -->
+  <!-- 加载 SRDF 并启动 move_group -->
+  <include file="$(find wpb_mani_moveit_config)/launch/move_group.launch">
+    <arg name="publish_monitored_planning_scene" value="true"/>
+    <arg name="allow_trajectory_execution" value="true"/>
+    <arg name="fake_execution" value="false"/> <!-- 如果用 Gazebo 控制器，设为 false -->
+  </include>
+
+  <!-- ========== RViz 可视化 ========== -->
+  <arg name="rvizconfig" default="$(find waterplus_map_tools)/rviz/nav.rviz" />
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+  <node name="rviz" pkg="rviz" type="rviz" args="-d $(arg rvizconfig)" required="true" />
+
+  <!-- ========== wpb_mani 抓取系统 ========== -->
+  <node pkg="wpb_mani_behaviors" type="wpb_mani_boxes_3d"  name="wpb_mani_boxes_3d" output= "screen" />
+  
+  <node pkg="wpb_mani_behaviors" type="wpb_mani_grab_box"  name="wpb_mani_grab_box"  output= "screen">
+    <rosparam file="$(find wpb_mani_simulator)/config/wpb_mani_sim.yaml" command="load" />
+  </node>
+
+</launch>
